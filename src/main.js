@@ -1,10 +1,13 @@
 // Importation des librairies
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { GUI } from 'dat.gui'
-import { pass } from 'three/examples/jsm/nodes/Nodes.js';
+import { GUI } from 'dat.gui';
+import { sphereObj } from "./sphere.js";
+import { distance, sqrt } from 'three/examples/jsm/nodes/Nodes.js';
 
-
+// 
+// INITIALISATION
+// 
 // crée la scene 3D
 const scene = new THREE.Scene();
 const canvas = new THREE.WebGLRenderer(); 
@@ -19,50 +22,73 @@ const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerH
     const control = new OrbitControls( camera, canvas.domElement );
 var Axes = new THREE.AxesHelper(20);
 scene.add(Axes)
+const ambientLight = new THREE.AmbientLight(0x154c79); // Ambient light
+scene.add(ambientLight);
 
 // Counter
 let informations = {
-    counter: 0
+    posx:0,
+    posy:0,
+    posz:0,
+    pas:0,
 };
+const gui = new GUI()
+const ecran = gui.addFolder("marche de L'ISEP")
+
+// variables
+var px = ecran.add(informations, 'posx').name("position X: ")
+var py = ecran.add(informations, 'posy').name("position Y: ")
+var pz = ecran.add(informations, 'posz').name("position Z: ")
+var pas = ecran.add(informations, 'pas').name("pas")
+ecran.open()
 
 // Initialize les variables
-let iterations = 1000;
-
-
+let iterations = 2000
 // Creer l'objet
 const color = new THREE.Color(1.,1.,1.);
 const Materiel = new THREE.LineBasicMaterial({ color: color, linewidth: 200});
 const geometrie = new THREE.BufferGeometry();
 const ligne = new THREE.Line(geometrie, Materiel);
-scene.add(ligne);
 
+sphereObj(scene, 10)
+scene.add(ligne);
 
 // tableau des positions
 let position1 = [0.,0.,0.]; // position initiale
-const positions = new Float32Array(iterations * 3)
+let positions = new Float32Array(iterations * 3)
+
 let i = 0
-
 function animate() {
-    if (i < iterations) {
-        let position2 = nouveau_point(position1, 4); // ou 4 est le facteur
-        positions.set(position1, i * 3);
-        positions.set(position2, i * 3);
-        position1 = position2
-
-        if (position2 == [0.,0.,0.] || position1 == [0.,0.,0.]) {
-            color = THREE.Color(0.5, 0.5, 0.5)
-            informations = informations.counter + 1
-        }
+    marche(positions, position1)
+    setTimeout(function() {
+        px.setValue(informations.posx); 
+        py.setValue(informations.posy); 
+        pz.setValue(informations.posz);
+        pas.setValue(i)
+    }, 1000);
     
-        console.log(informations.counter)
-    }
-
-    geometrie.setAttribute( 'position' , new THREE.BufferAttribute( positions, 3 ) );
-    i += 1
-
     canvas.render( scene, camera );
 	requestAnimationFrame( animate );
 	control.update();
+}
+
+function marche(positions, position1) {
+    if (i < iterations) {
+        positions.set(position1, 0);
+        let position2 = nouveau_point(position1, 4); // ou 4 est le facteur
+        // positions.set(position1, i * 3);
+        positions.set(position2, (i * 3));
+        position1 = position2.slice(); // copie le vecteur position1
+
+        informations.posx = position2[0]
+        informations.posy = position2[1]
+        informations.posz = position2[2]
+    }
+    
+    geometrie.setAttribute( 'position' , new THREE.BufferAttribute( positions, 3 ) );
+    geometrie.attributes.position.needsUpdate = true;
+    i += 1
+
 }
 
 function nouveau_point(point1, facteur) {
@@ -108,13 +134,10 @@ function entierAleatoire(min, max) {
     return valAleatoire;
 }
 
-const gui = new GUI()
-const ecran = gui.addFolder("marche de L'ISEP")
-var passages = ecran.add(informations, 'counter').name("Passages par l'origine")
-ecran.open()
-setTimeout(function() {
-    passages.setValue(informations.counter); // Change the value after 1 second
-}, 1000);
 
+
+function dist(x,y,z) {
+    return sqrt(x^2+y^2+z^2)
+}
 control.update();
 animate(canvas)
