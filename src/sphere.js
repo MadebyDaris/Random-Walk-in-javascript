@@ -1,6 +1,5 @@
 // Importation des librairies
-import * as THREE from 'three';
-export function sphereObj(scene, rayon) {
+import * as THREE from 'https://unpkg.com/three@0.127.0/build/three.module.js';export function sphereObj(scene, rayon) {
     const material = new THREE.MeshPhongMaterial({
         color: new THREE.Color(171,171,171),
         transparent: true,
