@@ -1,65 +1,92 @@
 // Importation des librairies
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GUI } from 'dat.gui';
 import { sphereObj } from "./sphere.js";
-import { distance, sqrt } from 'three/examples/jsm/nodes/Nodes.js';
+import { nouveau_point, dist, init_scene } from './lib.js';
 
 // 
-// INITIALISATION
+// Initialisation
 // 
-// crée la scene 3D
-const scene = new THREE.Scene();
-const canvas = new THREE.WebGLRenderer(); 
-    canvas.setSize( window.innerWidth, window.innerHeight ); // modifie la taille de la toile
-    document.getElementById("marche").appendChild( canvas.domElement ); // ajoute la toile au document HTML
 
-// initialize le monde
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500)
-    camera.position.set( 0, -20, -100 );
-    camera.lookAt( 0, 0, 0 );
-    // En utilisant une sous-librarie Orbit-Controls on peut déplacer la caméra 
-    const control = new OrbitControls( camera, canvas.domElement );
-var Axes = new THREE.AxesHelper(20);
-scene.add(Axes)
-const ambientLight = new THREE.AmbientLight(0x154c79); // Ambient light
-scene.add(ambientLight);
+// Initialisation des variables
+const seuil = 40; // seuil de distance pour arrêter la marche
+const pasMax = 800; // nombre maximum de pas
+const epaisseur = 4; // épaisseur des segments de la marche
 
-// Counter
+// Initialisation de la scène, de la caméra et des contrôles
+const { scene, canvas, camera, control } = init_scene();
+sphereObj(scene, seuil + 1); // ajout de la sphère à la scène
+
+// Initialisation des informations pour l'interface graphique (GUI)
 let informations = {
-    posx:0,
-    posy:0,
-    posz:0,
-    pas:0,
+    posx: 0, // position x actuelle
+    posy: 0, // position y actuelle
+    posz: 0, // position z actuelle
+    pas: 0, // nombre de pas effectués 
 };
-const gui = new GUI()
-const ecran = gui.addFolder("marche de L'ISEP")
 
-// variables
-var px = ecran.add(informations, 'posx').name("position X: ")
-var py = ecran.add(informations, 'posy').name("position Y: ")
-var pz = ecran.add(informations, 'posz').name("position Z: ")
-var pas = ecran.add(informations, 'pas').name("pas")
+// Configuration de l'interface graphique (GUI)
+const gui = new GUI();
+const ecran = gui.addFolder('Marche Aléatoire');
+const simule = { add: function() { location.reload(); }};
+ecran.add(simule, 'add').name('Recommencer la Simulation');
+
+// Variables GUI pour afficher les positions et le nombre de pas
+var px = ecran.add(informations, 'posx').name("Position X: ")
+var py = ecran.add(informations, 'posy').name("Position Y: ")
+var pz = ecran.add(informations, 'posz').name("Position Z: ")
+var pas = ecran.add(informations, 'pas').name("Pas")
 ecran.open()
 
-// Initialize les variables
-let iterations = 2000
-// Creer l'objet
-const color = new THREE.Color(1.,1.,1.);
-const Materiel = new THREE.LineBasicMaterial({ color: color, linewidth: 200});
-const geometrie = new THREE.BufferGeometry();
-const ligne = new THREE.Line(geometrie, Materiel);
 
-sphereObj(scene, 10)
-scene.add(ligne);
 
-// tableau des positions
-let position1 = [0.,0.,0.]; // position initiale
-let positions = new Float32Array(iterations * 3)
+// 
+// Scéne
+// 
 
-let i = 0
+// Création du matériau pour les lignes de la marche
+const color = new THREE.Color(0.9, 0.9, 0.9);
+const materiel = new THREE.LineBasicMaterial({ color: color, linewidth: 200 });
+
+// Tableau des positions pour stocker les points de la marche
+let position1 = [0, 0, 0]; // position initiale
+let position2 = nouveau_point(position1, epaisseur); // première nouvelle position
+let positions = new Float32Array(pasMax * 3); // tableau pour toutes les positions
+positions.set(position1, 0); // définir la position initiale
+
+let i = 0; // compteur de pas
+
+// Fonction d'animation pour simuler la marche aléatoire
 function animate() {
-    marche(positions, position1)
+    if (i < pasMax) {
+        position2 = nouveau_point(position1, epaisseur); // générer une nouvelle position
+
+        // Vérifier si la nouvelle position est à l'intérieur du seuil
+        if (dist(position2) < seuil) {
+            // Vérifier si nous pouvons encore ajouter des positions au tableau
+            if ((i + 1) * 3 < positions.length) {
+                positions.set(position2, (i + 1) * 3); // ajouter la nouvelle position au tableau
+
+                // Créer la géométrie et la ligne pour la nouvelle position
+                const geometrie = new THREE.BufferGeometry();
+                geometrie.setAttribute('position', new THREE.BufferAttribute(positions.slice(0, (i + 1) * 3), 3));
+                geometrie.attributes.position.needsUpdate = true;
+
+                const ligne = new THREE.Line(geometrie, materiel); // créer la ligne avec le matériau
+                scene.add(ligne); // ajouter la ligne à la scène
+
+                position1 = position2.slice(); // mettre à jour position1
+
+                // Mise à jour des informations pour l'interface graphique (GUI)
+                informations.posx = position2[0];
+                informations.posy = position2[1];
+                informations.posz = position2[2];
+                i += 1; // incrémenter le compteur de pas
+            }
+        }
+    }
+
+    // Mise à jour de l'interface graphique (GUI) avec les nouvelles valeurs
     setTimeout(function() {
         px.setValue(informations.posx); 
         py.setValue(informations.posy); 
@@ -67,77 +94,12 @@ function animate() {
         pas.setValue(i)
     }, 1000);
     
+    // Rendu de la scène
     canvas.render( scene, camera );
 	requestAnimationFrame( animate );
 	control.update();
 }
 
-function marche(positions, position1) {
-    if (i < iterations) {
-        positions.set(position1, 0);
-        let position2 = nouveau_point(position1, 4); // ou 4 est le facteur
-        // positions.set(position1, i * 3);
-        positions.set(position2, (i * 3));
-        position1 = position2.slice(); // copie le vecteur position1
-
-        informations.posx = position2[0]
-        informations.posy = position2[1]
-        informations.posz = position2[2]
-    }
-    
-    geometrie.setAttribute( 'position' , new THREE.BufferAttribute( positions, 3 ) );
-    geometrie.attributes.position.needsUpdate = true;
-    i += 1
-
-}
-
-function nouveau_point(point1, facteur) {
-    /*
-    point: Un tableau sous la forme [x, y, z]
-    facteur: Un reel
-
-    La renvoie le point1 suite a un déplacement aléatoire dans les trois dimensions (x, y, z) en utilisant un facteur donné
-    Les coordonnées du point initial sont mises à jour en ajoutant le déplacement
-    
-    (point: Array, facteur: Number) -> Array
-    */
-    
-    let dx = entierAleatoire(-1,1)*facteur
-    let dy = entierAleatoire(-1,1)*facteur
-    let dz = entierAleatoire(-1,1)*facteur
-    
-    let deltaPos = [dx, dy, dz];
-    let choix = (Math.floor(entierAleatoire(3,1))) - 1
-
-    let point2 = point1
-    point2[choix] += deltaPos[choix]
-    return point2
-}
-
-
-
-function entierAleatoire(min, max) {
-    /*
-    min : borne inferieur (entier relatif)
-    max : borne superieur (entier relatif)
-    
-    Renvoie un entier relatif aléatoire dans l'intervalle [min, max]
-    
-    (min: Number, max: Number) -> Number
-    */
-
-    let difference = max - min;
-    let valAleatoire = Math.random();
-
-    valAleatoire = Math.round( valAleatoire * difference);
-    valAleatoire = valAleatoire + min;
-    return valAleatoire;
-}
-
-
-
-function dist(x,y,z) {
-    return sqrt(x^2+y^2+z^2)
-}
+// Démarrage des contrôles et de l'animation
 control.update();
 animate(canvas)
