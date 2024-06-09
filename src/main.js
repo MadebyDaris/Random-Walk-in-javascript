@@ -1,6 +1,6 @@
 // Importation des librairies
 import * as THREE from 'https://unpkg.com/three@0.127.0/build/three.module.js';
-import { GUI } from 'https://unpkg.com/browse/dat.gui@0.7.7/build/dat.gui.module.js';
+import { GUI } from 'https://unpkg.com/dat.gui@0.7.7/build/dat.gui.module.js';
 import { sphereObj } from "./sphere.js";
 import { nouveau_point, dist, init_scene } from './lib.js';
 // 
